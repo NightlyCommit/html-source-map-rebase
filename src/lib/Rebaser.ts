@@ -1,6 +1,6 @@
 import RewritingStream from "parse5-html-rewriting-stream";
 import {SourceMapConsumer} from "source-map";
-import type {StartTag} from "parse5-sax-parser";
+import type {StartTagToken as StartTag} from "parse5-sax-parser";
 import {EventEmitter} from "events";
 import {parse, Url} from "url";
 import {posix, isAbsolute, dirname, join} from "path";
