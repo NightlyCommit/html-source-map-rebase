@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "strict": true,
+    "target": "ES2017",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "esModuleInterop": true
+  },
+  "include": [
+    "src"
+  ]
+}
