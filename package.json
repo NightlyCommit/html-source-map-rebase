@@ -4,6 +4,9 @@
   "description": "Rebase your HTML assets based on a source map.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "clean": "rimraf dist",
     "prepack": "npm run clean && npm run build",
