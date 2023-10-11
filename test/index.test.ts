@@ -293,4 +293,24 @@ tape('Rebaser', ({test}) => {
         .finally(end);
     });
   });
+
+  test('preserves the other parts of the document untouched', ({same, end}) => {
+    const environment = warmUp();
+
+    return environment.render('html/index.html')
+      .then((html) => {
+        const map = environment.getSourceMap();
+
+        let rebaser = createRebaser(Buffer.from(map));
+
+        return rebaser.rebase(Buffer.from(html))
+          .then(({data}) => {
+            const expectation = readFileSync(resolve('test/fixtures/html/expectation.html'));
+
+            same(data.toString(), expectation.toString());
+
+            end();
+          });
+      });
+  });
 });

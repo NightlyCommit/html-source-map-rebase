@@ -26,6 +26,11 @@ partials/bar.twig
 
 ``` html
 <img src="../bar.png">
+<style>
+    .foo {
+        background-image: url("../bar.png");
+    }
+</style>
 ```
 
 By rebasing the assets relatively to the file they were imported from, the resulting HTML would be:
@@ -33,7 +38,14 @@ By rebasing the assets relatively to the file they were imported from, the resul
 ``` html
 <img src="foo.png">
 <img src="bar.png">
+<style>
+    .foo {
+        background-image: url("bar.png");
+    }
+</style>
 ```
+
+Yes, you read it well: it also rebases resources referenced by inline styles.
 
 ## How it works
 

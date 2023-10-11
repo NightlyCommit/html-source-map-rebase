@@ -1,11 +1,12 @@
 import RewritingStream from "parse5-html-rewriting-stream";
-import {SourceMapConsumer} from "source-map";
-import type {StartTagToken as StartTag} from "parse5-sax-parser";
+import {SourceMapConsumer, SourceMapGenerator} from "source-map";
+import type {StartTagToken as StartTag, TextToken} from "parse5-sax-parser";
 import {EventEmitter} from "events";
 import {parse, Url} from "url";
 import {posix, isAbsolute, dirname, join} from "path";
 import slash from "slash"
-import {Readable, Writable} from "stream"
+import {Writable} from "stream"
+import {Rebaser as CssRebaser} from "css-source-map-rebase";
 
 export type Result = {
   data: Buffer,
@@ -84,10 +85,6 @@ export const createRebaser = (
     return new Promise((resolve, reject) => {
       let data: Buffer = Buffer.from('');
 
-      const inputStream = new Readable({
-        encoding: "utf-8"
-      });
-
       const outputStream = new Writable({
         write(chunk: any, _encoding: BufferEncoding, callback: (error?: (Error | null)) => void) {
           data = Buffer.concat([data, chunk]);
@@ -103,12 +100,20 @@ export const createRebaser = (
         });
       });
 
-      inputStream
-        .pipe(rewritingStream)
-        .pipe(outputStream);
+      rewritingStream.pipe(outputStream);
 
       const isRebasable = (url: Url): boolean => {
         return !isAbsolute(url.href) && (url.host === null) && ((url.hash === null) || (url.path !== null));
+      };
+
+      let queue: Promise<void> = Promise.resolve();
+
+      const defer = (execution: () => Promise<void>) => {
+        queue = queue
+          .then(execution)
+          .catch((error) => {
+            reject(error);
+          });
       };
 
       const getRegions = () => {
@@ -151,6 +156,80 @@ export const createRebaser = (
         return regions;
       }
 
+      const findRegion = (
+        startLine: number,
+        startColumn: number
+      ): Region | null => {
+        let i = 0;
+        let result: Region | null = null;
+
+        const regions = getRegions();
+        const tagStartLine = startLine;
+        const tagStartColumn = startColumn - 1;
+
+        while ((i < regions.length) && (result === null)) {
+          let region = regions[i];
+
+          if (
+            ((region.startLine < tagStartLine) || ((region.startLine === tagStartLine) && (region.startColumn <= tagStartColumn))) &&
+            (
+              (region.endLine === null) || (region.endLine > tagStartLine) ||
+              ((region.endLine === tagStartLine) && (region.endColumn === null || (region.endColumn >= tagStartColumn)))
+            )
+          ) {
+            result = region;
+          }
+
+          i++;
+        }
+
+        return result;
+      }
+
+      const transformText = (textToken: TextToken, rawHtml: string): Promise<void> => {
+        if (currentStartTag?.tagName !== "style") {
+          return Promise.resolve();
+        }
+
+        const {startLine, startCol, endLine} = textToken.sourceCodeLocation!;
+        const numberOfLines = 1 + (endLine - startLine);
+        const region = findRegion(startLine, startCol)!;
+
+        const generator = new SourceMapGenerator();
+
+        for (let generatedLine = 1; generatedLine <= numberOfLines; generatedLine++) {
+          generator.addMapping({
+            source: region.source,
+            generated: {
+              line: generatedLine,
+              column: 0
+            },
+            original: {
+              line: 1,
+              column: 0
+            }
+          });
+        }
+
+        generator.setSourceContent(region.source, rawHtml);
+
+        const cssRebaser = new CssRebaser({
+          map: Buffer.from(generator.toString()),
+          rebase
+        });
+
+        cssRebaser.on("rebase", (rebasedPath, resolvedPath) => {
+          eventEmitter.emit('rebase', rebasedPath, resolvedPath);
+        });
+
+        return cssRebaser.rebase(Buffer.from(rawHtml))
+          .then((result) => {
+            const {css} = result;
+
+            textToken.text = css.toString();
+          });
+      };
+
       const transformStartTag = (tag: StartTag) => {
         const processTag = (tag: StartTag) => {
           const attributes = tag.attrs;
@@ -162,31 +241,8 @@ export const createRebaser = (
                 const url = parse(attribute.value);
 
                 if (isRebasable(url)) {
-                  const location = tag.sourceCodeLocation!;
-
-                  let tagStartLine = location.startLine;
-                  let tagStartColumn = location.startCol - 1;
-
-                  let i = 0;
-                  let tagRegion: Region | null = null;
-                  let regions = getRegions();
-
-                  while ((i < regions.length) && (tagRegion === null)) {
-                    let region = regions[i];
-
-                    if (
-                      ((region.startLine < tagStartLine) || ((region.startLine === tagStartLine) && (region.startColumn <= tagStartColumn))) &&
-                      (
-                        (region.endLine === null) || (region.endLine > tagStartLine) ||
-                        ((region.endLine === tagStartLine) && (region.endColumn === null || (region.endColumn >= tagStartColumn)))
-                      )
-                    ) {
-                      tagRegion = region;
-                    }
-
-                    i++;
-                  }
-
+                  const {startLine, startCol} = tag.sourceCodeLocation!;
+                  const tagRegion = findRegion(startLine, startCol);
                   const {source} = tagRegion!;
 
                   const resolvedPath = posix.join(dirname(source), url.pathname!);
@@ -215,23 +271,58 @@ export const createRebaser = (
                 break;
             }
           });
-        };
+        }
 
         processTag(tag);
       }
 
-      rewritingStream.on('startTag', (startTag) => {
-        try {
-          transformStartTag(startTag);
+      let currentStartTag: StartTag | null = null;
 
+      rewritingStream.on('startTag', (startTag) => {
+        defer(() => {
+          currentStartTag = startTag;
+
+          transformStartTag(startTag);
           rewritingStream.emitStartTag(startTag);
-        } catch (error) {
-          reject(error);
-        }
+
+          return Promise.resolve();
+        });
       });
 
-      inputStream.push(html);
-      inputStream.push(null);
+      rewritingStream.on('text', (text, rawHtml) => {
+        defer(() => {
+          return transformText(text, rawHtml)
+            .then(() => {
+              rewritingStream.emitRaw(text.text);
+            });
+        });
+      });
+
+      rewritingStream.on("endTag", (endTag) => {
+        defer(() => {
+          currentStartTag = null;
+
+          rewritingStream.emitEndTag(endTag);
+
+          return Promise.resolve();
+        });
+      });
+
+      for (const eventName of ['doctype', 'comment']) {
+        rewritingStream.on(eventName, (_token, rawHtml) => {
+          defer(() => {
+            rewritingStream.emitRaw(rawHtml);
+
+            return Promise.resolve();
+          });
+        });
+      }
+
+      rewritingStream.write(html.toString(), () => {
+        queue.then(() => {
+          rewritingStream.end()
+        });
+      });
     });
   };
 
