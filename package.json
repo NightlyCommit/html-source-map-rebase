@@ -12,7 +12,7 @@
     "prepack": "npm run clean && npm run build",
     "prebuild": "npm run clean",
     "precover": "rimraf coverage",
-    "test": "ts-node node_modules/tape/bin/tape test/**/test.ts | tap-spec",
+    "test": "ts-node node_modules/tape/bin/tape test/**/*.test.ts | tap-spec",
     "build": "tsc --project . --module commonjs --outDir dist --declaration true",
     "build:doc": "typedoc src/index.ts --out docs --excludePrivate --excludeProtected --excludeExternals",
     "cover": "nyc npm t",
@@ -29,6 +29,7 @@
   },
   "homepage": "https://github.com/NightlyCommit/html-source-map-rebase#readme",
   "dependencies": {
+    "css-source-map-rebase": "^5.0.1",
     "parse5-html-rewriting-stream": "^5.1.1",
     "slash": "^3.0.0",
     "source-map": "^0.6.1"
