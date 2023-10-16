@@ -90,7 +90,7 @@ Apache-2.0 © [Eric MORAND]()
 
 [npm-image]: https://badge.fury.io/js/html-source-map-rebase.svg
 [npm-url]: https://npmjs.org/package/html-source-map-rebase
-[travis-image]: https://travis-ci.org/ericmorand/html-source-map-rebase.svg?branch=master
-[travis-url]: https://travis-ci.org/ericmorand/html-source-map-rebase
-[coveralls-image]: https://coveralls.io/repos/github/ericmorand/html-source-map-rebase/badge.svg
-[coveralls-url]: https://coveralls.io/github/ericmorand/html-source-map-rebase
+[travis-image]: https://travis-ci.org/NightlyCommit/html-source-map-rebase.svg?branch=master
+[travis-url]: https://travis-ci.org/NightlyCommit/html-source-map-rebase
+[coveralls-image]: https://coveralls.io/repos/github/NightlyCommit/html-source-map-rebase/badge.svg
+[coveralls-url]: https://coveralls.io/github/NightlyCommit/html-source-map-rebase
