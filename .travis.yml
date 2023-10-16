@@ -1,12 +1,15 @@
+dist: focal
 language: node_js
 node_js:
-  - 10
-  - 11
-  - 12
+  - 16
+  - 17
+  - 18
+before_script:
+  - npm i ts-node
 jobs:
   include:
     - stage: cover
-      node_js: 13
+      node_js: 19
       script:
         - npm run cover
         - npm run coverage

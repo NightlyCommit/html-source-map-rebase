@@ -293,7 +293,12 @@ export const createRebaser = (
         defer(() => {
           return transformText(text, rawHtml)
             .then(() => {
-              rewritingStream.emitRaw(text.text);
+              if (rewritingStream.writable) {
+                rewritingStream.emitRaw(text.text);
+              }
+              else {
+                outputStream.write(text.text);
+              }
             });
         });
       });
@@ -320,7 +325,7 @@ export const createRebaser = (
 
       rewritingStream.write(html.toString(), () => {
         queue.then(() => {
-          rewritingStream.end()
+          rewritingStream.end();
         });
       });
     });
