@@ -10,6 +10,9 @@ jobs:
   include:
     - stage: cover
       node_js: 19
+      before_script:
+        - npm i nyc --global
+        - curl -L https://coveralls.io/coveralls-linux.tar.gz | tar -xz -C .
       script:
-        - npm run cover
-        - npm run coverage
+        - nyc npm test
+        - nyc report --reporter=text-lcov > coverage/lcov.info && ./coveralls report

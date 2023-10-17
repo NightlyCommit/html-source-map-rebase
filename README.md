@@ -79,10 +79,17 @@ Read the [documentation](https://nightlycommit.github.io/html-source-map-rebase)
 
 ## Contributing
 
+### Prerequisites
+
+* [nyc](https://www.npmjs.com/package/nyc)
+
+### Usage
+
 * Fork the main repository
 * Code
 * Implement tests using [tape](https://www.npmjs.com/package/tape)
-* Issue a pull request keeping in mind that all pull requests must reference an issue in the issue queue
+* Check the test coverage by executing `nyc npm run test`
+* Issue a pull request keeping in mind that all pull requests must reference an issue in the issue queue and must maintain a 100% test coverage
 
 ## License
 
